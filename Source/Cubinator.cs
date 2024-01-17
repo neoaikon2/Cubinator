@@ -21,10 +21,7 @@ using UnityEngine;
 namespace BW_Cubinator
 {    
     public class Cubinator : MelonMod
-    {        
-        public int cubeMapSize = 1024*4; // Resolution of exported cubemap
-		public string outputDir = MelonUtils.BaseDirectory + "\\Output"; 
-
+    {
         private bool Capturing = false;
 		private MelonPreferences_Category cubemapSettings;
 		private MelonPreferences_Entry<int> cfgResolution;
@@ -33,23 +30,9 @@ namespace BW_Cubinator
 		// Initialize preferences if they aren't already
 		public override void OnInitializeMelon()
 		{
-			cubemapSettings = MelonPreferences.CreateCategory("Cubemap Settings");
-			cfgResolution = MelonPreferences.CreateEntry<int>("Cubemap Settings", "Resolution", 2048);
-			cfgOutputDir = MelonPreferences.CreateEntry<string>("Cubemap Settings", "Output Directory", MelonUtils.BaseDirectory + "/Output");
-			base.OnInitializeMelon();
-		}
-
-		// Set cubeMapSize and outputDir based on cfg preferences
-		public override void OnPreferencesLoaded()
-		{
-			cubeMapSize = cfgResolution.Value;
-			outputDir = cfgOutputDir.Value;
-			base.OnPreferencesLoaded();
-		}
-
-
-		public override void OnApplicationStart()
-		{
+			cubemapSettings = MelonPreferences.CreateCategory("Cubinator");
+			cfgResolution = MelonPreferences.CreateEntry<int>("Cubinator", "Resolution", 2048);
+			cfgOutputDir = MelonPreferences.CreateEntry<string>("Cubinator", "OutputDirectory", MelonUtils.BaseDirectory + "\\Output");
 #if BONEWORKS
 			LoggerInstance.Msg(Info.Name + " " + Info.Version + " built for Boneworks");
 #endif
@@ -57,12 +40,11 @@ namespace BW_Cubinator
 			LoggerInstance.Msg(Info.Name + " " + Info.Version + " built for Bonelab");
 #endif
 #if DEBUG
-			LoggerInstance.Msg("Cubemap Resolution: " + cubeMapSize.ToString());
-			LoggerInstance.Msg("Output Directory: " + outputDir);
+			LoggerInstance.Msg("Cubemap Resolution: " + cfgResolution.Value.ToString());
+			LoggerInstance.Msg("Output Directory: " + cfgOutputDir.Value.ToString());
 #endif
-			base.OnApplicationStart();
+			base.OnInitializeMelon();
 		}
-
 
 		public override void OnUpdate()
         {			
@@ -89,8 +71,8 @@ namespace BW_Cubinator
             Capturing = true;
             
 			// Check if output directory exists and create it if neccessary
-            if (!System.IO.Directory.Exists(outputDir))
-                System.IO.Directory.CreateDirectory(outputDir);
+            if (!System.IO.Directory.Exists(cfgOutputDir.Value))
+                System.IO.Directory.CreateDirectory(cfgOutputDir.Value);
 
 			// Hide the player model
 #if BONEWORKS
@@ -115,8 +97,8 @@ namespace BW_Cubinator
             art.SetActive(false);
 
             // Create a new cubemap
-            Cubemap cm = new Cubemap(cubeMapSize, TextureFormat.RGB24, false);
-            RenderTexture er = new RenderTexture(cubeMapSize * 2, cubeMapSize, 0);
+            Cubemap cm = new Cubemap(cfgResolution.Value, TextureFormat.RGB24, false);
+            RenderTexture er = new RenderTexture(cfgResolution.Value * 2, cfgResolution.Value, 0);
             
             // Wait for the end of the current frame
             yield return new WaitForEndOfFrame();
@@ -133,13 +115,13 @@ namespace BW_Cubinator
             // Renabled Brett, sexy man thing that he is
             art.SetActive(true);
             Capturing = false;
-            LoggerInstance.Msg("Environmental capturing complete, raw data saved to " + outputDir);
+            LoggerInstance.Msg("Environmental capturing complete, raw data saved to " + cfgOutputDir.Value);
         }
 
         public void SaveFace(int face, Cubemap cum)
         {
             // Create a temporary output texture
-            Texture2D output = new Texture2D(cubeMapSize, cubeMapSize, TextureFormat.RGB24, false);
+            Texture2D output = new Texture2D(cfgResolution.Value, cfgResolution.Value, TextureFormat.RGB24, false);
             
             // Copy the requested face from the cubemap to the output texture
             switch (face)
@@ -172,23 +154,23 @@ namespace BW_Cubinator
             switch (face)
             {
                 case 0:
-                    File.WriteAllBytes(outputDir + "/Front.raw", pngData);                    
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Front.raw", pngData);                    
                     break;
                 case 1:
-                    File.WriteAllBytes(outputDir + "/Back.raw", pngData);
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Back.raw", pngData);
                     break;				
                 case 2:
-                    File.WriteAllBytes(outputDir + "/Right.raw", pngData);
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Right.raw", pngData);
                     break;
                 case 3:
-                    File.WriteAllBytes(outputDir + "/Left.raw", pngData);
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Left.raw", pngData);
                     break;
                 case 4:
-                    File.WriteAllBytes(outputDir + "/Top.raw", pngData);
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Top.raw", pngData);
                     break;
                 case 5:
                 default:
-                    File.WriteAllBytes(outputDir + "/Bottom.raw", pngData);
+                    File.WriteAllBytes(cfgOutputDir.Value + "/Bottom.raw", pngData);
                     break;
             }
         }
