@@ -29,8 +29,9 @@ namespace BW_Cubinator
 
 		// Initialize preferences if they aren't already
 		public override void OnInitializeMelon()
-		{
+		{			
 			cubemapSettings = MelonPreferences.CreateCategory("Cubinator");
+			cubemapSettings.SetFilePath("Cubinator.cfg");
 			cfgResolution = MelonPreferences.CreateEntry<int>("Cubinator", "Resolution", 2048);
 			cfgOutputDir = MelonPreferences.CreateEntry<string>("Cubinator", "OutputDirectory", MelonUtils.BaseDirectory + "\\Output");
 #if BONEWORKS
