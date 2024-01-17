@@ -1,0 +1,9 @@
+{
+  "name": "Cubinator",
+  "version_number": "1.0.0",
+  "website_url": "https://github.com/neoaikon2/Cubinator/",
+  "description": "A CodeMod to allow you to capture a 6 sided cubemap of your current location in-game by pressing CTRL+P",
+  "dependencies": [	  
+	  "BepInEx-BepInExPack-5.4.2100"
+  ]
+}
