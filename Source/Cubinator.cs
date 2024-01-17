@@ -48,7 +48,7 @@ namespace BW_Cubinator
 		}
 
 		public override void OnUpdate()
-        {			
+        {
 #if BONEWORKS && BONELAB
 			if(!capturing) {
 				LoggerInstance.Error("Both pragmas enabled! Please enable either BONEWORKS or BONELAB and rebuild!");
@@ -58,7 +58,7 @@ namespace BW_Cubinator
 #endif
 			// Capture the cube map when the user presses CTRL+P
 			if ((Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.P))
-            {
+			{
                 // Begin capture coroutine
                 MelonCoroutines.Start(CaptureCubemap());
             }            
