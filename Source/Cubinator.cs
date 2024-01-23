@@ -19,27 +19,38 @@ using UnityEngine;
 #endif
 [assembly: MelonGame("Stress Level Zero", "BONELAB")]
 namespace BW_Cubinator
-{    
-    public class Cubinator : MelonMod
-    {
-        private bool Capturing = false;
+{
+	public class Cubinator : MelonMod
+	{
+		private bool Capturing = false;
 		private MelonPreferences_Category cubemapSettings;
 		private MelonPreferences_Entry<int> cfgResolution;
 		private MelonPreferences_Entry<string> cfgOutputDir;
 
 		// Initialize preferences if they aren't already
 		public override void OnInitializeMelon()
-		{			
+		{
+			// Check if settings file actually exists and if not create it
+			if (!Directory.Exists(MelonUtils.UserDataDirectory + "\\Cubinator"))
+				Directory.CreateDirectory(MelonUtils.UserDataDirectory + "\\Cubinator");
+			if(!File.Exists(MelonUtils.UserDataDirectory + "\\Cubinator\\Cubinator.cfg"))
+				File.Create(MelonUtils.UserDataDirectory + "\\Cubinator\\Cubinator.cfg");
+
+			// Select settings file for loading and saving
 			cubemapSettings = MelonPreferences.CreateCategory("Cubinator");
-			cubemapSettings.SetFilePath("Cubinator.cfg");
+			cubemapSettings.SetFilePath(MelonUtils.UserDataDirectory + "\\Cubinator\\Cubinator.cfg");
 			cfgResolution = MelonPreferences.CreateEntry<int>("Cubinator", "Resolution", 2048);
 			cfgOutputDir = MelonPreferences.CreateEntry<string>("Cubinator", "OutputDirectory", MelonUtils.BaseDirectory + "\\Output");
+
+			// Post build message
 #if BONEWORKS
 			LoggerInstance.Msg(Info.Name + " " + Info.Version + " built for Boneworks");
 #endif
 #if BONELAB
 			LoggerInstance.Msg(Info.Name + " " + Info.Version + " built for Bonelab");
 #endif
+
+			// DEBUG, post resolution
 #if DEBUG
 			LoggerInstance.Msg("Cubemap Resolution: " + cfgResolution.Value.ToString());
 			LoggerInstance.Msg("Output Directory: " + cfgOutputDir.Value.ToString());
@@ -47,8 +58,16 @@ namespace BW_Cubinator
 			base.OnInitializeMelon();
 		}
 
+		public override void OnDeinitializeMelon()
+		{
+			// Save settings
+			cubemapSettings.SaveToFile();
+			base.OnDeinitializeMelon();
+		}
+
 		public override void OnUpdate()
-        {
+		{
+// Keeps people who might accidently set both these flags from making that mistake
 #if BONEWORKS && BONELAB
 			if(!capturing) {
 				LoggerInstance.Error("Both pragmas enabled! Please enable either BONEWORKS or BONELAB and rebuild!");
@@ -56,17 +75,40 @@ namespace BW_Cubinator
 			}
 			return;
 #endif
-			// Capture the cube map when the user presses CTRL+P
-			if ((Input.GetKeyDown(KeyCode.LeftControl) || Input.GetKeyDown(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.P))
-			{
-                // Begin capture coroutine
-                MelonCoroutines.Start(CaptureCubemap());
-            }            
-            base.OnUpdate();
-        }
 
-        IEnumerator CaptureCubemap()
+			// Debug heartbeat
+#if DEBUG
+			Debug_Heartbeat();
+#endif
+			// Capture the cube map when the user presses CTRL+P
+			if ((Input.GetKey(KeyCode.LeftControl) || Input.GetKey(KeyCode.RightControl)) && Input.GetKeyDown(KeyCode.P))
+			{
+#if DEBUG
+				MelonLogger.Msg(ConsoleColor.Cyan, "Keypress detected");
+#endif
+				// Begin capture coroutine
+				MelonCoroutines.Start(CaptureCubemap());
+			}
+			base.OnUpdate();
+		}
+
+#if DEBUG
+		// Heartbeat in the console to show our mod is alive
+		float heartbeat_t = 0;
+		private void Debug_Heartbeat()
+		{
+			heartbeat_t += Time.deltaTime;
+			if(heartbeat_t >= 3)
+			{
+				MelonLogger.Msg(ConsoleColor.Cyan, "Hearbeat <3!");
+				heartbeat_t = 0;
+			}
+		}
+#endif
+
+		IEnumerator CaptureCubemap()
         {
+			// Begin capture
             if (Capturing) yield return null;
             LoggerInstance.Msg("Capturing local environment, please wait...");
             Capturing = true;
@@ -116,64 +158,90 @@ namespace BW_Cubinator
             // Renabled Brett, sexy man thing that he is
             art.SetActive(true);
             Capturing = false;
-            LoggerInstance.Msg("Environmental capturing complete, raw data saved to " + cfgOutputDir.Value);
+            LoggerInstance.Msg("Environmental capturing complete, PNG output saved to " + cfgOutputDir.Value);
         }
 
         public void SaveFace(int face, Cubemap cum)
         {
             // Create a temporary output texture
             Texture2D output = new Texture2D(cfgResolution.Value, cfgResolution.Value, TextureFormat.RGB24, false);
-            
-            // Copy the requested face from the cubemap to the output texture
+
+			// Select the current face
+			CubemapFace cubeMapFace = CubemapFace.NegativeY;
             switch (face)
             {
                 case 0:
-                    output.SetPixels(cum.GetPixels(CubemapFace.PositiveZ, 0));
+					cubeMapFace = CubemapFace.PositiveZ;
                     break;
                 case 1:
-                    output.SetPixels(cum.GetPixels(CubemapFace.NegativeZ, 0));
+					cubeMapFace = CubemapFace.NegativeZ;
                     break;
                 case 2:
-                    output.SetPixels(cum.GetPixels(CubemapFace.PositiveX, 0));
+					cubeMapFace = CubemapFace.PositiveX;
                     break;
                 case 3:
-                    output.SetPixels(cum.GetPixels(CubemapFace.NegativeX, 0));
+					cubeMapFace = CubemapFace.NegativeX;
                     break;
                 case 4:
-                    output.SetPixels(cum.GetPixels(CubemapFace.PositiveY, 0));
+					cubeMapFace = CubemapFace.PositiveY;
                     break;
                 case 5:
                 default:
-                    output.SetPixels(cum.GetPixels(CubemapFace.NegativeY, 0));
-                    break;
+					cubeMapFace = CubemapFace.NegativeY;
+					break;
             }
-            
-            // Get the bytes of raw texture data
-            byte[] pngData = output.GetRawTextureData();
-                        
-            // Write the file
+
+			// Select the current file name
+			string fileName = "/Bottom.png";
             switch (face)
             {
                 case 0:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Front.raw", pngData);                    
+					fileName = "/Front.png";
                     break;
                 case 1:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Back.raw", pngData);
-                    break;				
+					fileName = "/Back.png";
+					break;				
                 case 2:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Right.raw", pngData);
-                    break;
+					fileName = "/Right.png";
+					break;
                 case 3:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Left.raw", pngData);
-                    break;
+					fileName = "/Left.png";
+					break;
                 case 4:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Top.raw", pngData);
-                    break;
+					fileName = "/Top.png";
+					break;
                 case 5:
                 default:
-                    File.WriteAllBytes(cfgOutputDir.Value + "/Bottom.raw", pngData);
-                    break;
+					fileName = "/Bottom.png";
+					break;
             }
-        }
+
+			// Flip the image so it's oriented correctly and save it to the output directory
+			output.SetPixels(FlipFlip(cum.GetPixels(cubeMapFace, 0)));
+			File.WriteAllBytes(cfgOutputDir.Value + fileName, ImageConversion.EncodeToPNG(output)); // So that's where Texture2D.EncodeToPNG went...
+		}
+
+		public UnhollowerBaseLib.Il2CppStructArray<Color> FlipFlip(UnhollowerBaseLib.Il2CppStructArray<Color> pixels)
+		{
+			// Check if the array is not null
+			if (pixels != null)
+			{
+				// TODO - Check if we actually need to copy the array at this point or if we can just leave it initialized at length
+				UnhollowerBaseLib.Il2CppStructArray<Color>  tmp = new Color[pixels.Length];
+				pixels.CopyTo(tmp, 0);
+
+				// Flip the pixel data so the image won't be upside down
+				for(int j = 0; j < cfgResolution.Value; j++)
+					for(int k = 0; k < cfgResolution.Value; k++)
+					{						
+						int index = ((j * cfgResolution.Value) + k);
+						int flipdex = ( (pixels.Length - cfgResolution.Value - j * cfgResolution.Value) + k );
+
+						tmp[index] = pixels[flipdex];
+					}
+				return tmp;
+			}
+			return pixels;
+		}
     }
 }
